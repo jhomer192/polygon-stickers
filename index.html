@@ -25,6 +25,7 @@
     <section class="stage" aria-label="Sticker preview">
       <div class="canvas-wrap has-photo">
         <canvas id="photo-canvas" width="1024" height="1024" aria-label="Sticker canvas"></canvas>
+        <div id="brush-cursor" aria-hidden="true"></div>
       </div>
     </section>
 
@@ -39,9 +40,10 @@
 
       <div class="row" id="photo-tools" hidden>
         <div class="seg" role="tablist" aria-label="Tool">
-          <button class="seg-btn active" data-tool="wand" role="tab" aria-selected="true">Magic wand</button>
-          <button class="seg-btn" data-tool="erase" role="tab" aria-selected="false">Eraser</button>
+          <button class="seg-btn active" data-tool="wand" role="tab" aria-selected="true">Wand</button>
+          <button class="seg-btn" data-tool="erase" role="tab" aria-selected="false">Erase</button>
           <button class="seg-btn" data-tool="restore" role="tab" aria-selected="false">Restore</button>
+          <button class="seg-btn" data-tool="paint" role="tab" aria-selected="false">Paint</button>
         </div>
       </div>
 
@@ -52,8 +54,13 @@
       </div>
 
       <div class="row" id="photo-brush-row" hidden>
-        <label class="lbl"><span>Brush size</span><output id="brush-out">40px</output></label>
-        <input id="photo-brush" type="range" min="6" max="120" value="40" step="2" />
+        <label class="lbl"><span>Brush size</span><output id="brush-out">60px</output></label>
+        <input id="photo-brush" type="range" min="6" max="200" value="60" step="2" />
+      </div>
+
+      <div class="row" id="photo-paint-row" hidden>
+        <label class="lbl"><span>Paint color</span></label>
+        <div class="palette" id="paint-palette"></div>
       </div>
 
       <div class="row" id="photo-actions" hidden>

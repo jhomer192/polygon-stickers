@@ -85,11 +85,36 @@ html, body {
   border: 1px solid var(--line);
   overflow: hidden;
 }
+.canvas-wrap { position: relative; }
 #photo-canvas {
   display: block;
   width: 100%;
   height: 100%;
   touch-action: none; /* prevent iOS scroll on drag */
+}
+
+/* Brush cursor preview — a ring layered over the canvas so you can see
+   exactly where the brush will hit before tapping. Pointer-events disabled
+   so it never blocks canvas interaction. */
+#brush-cursor {
+  position: absolute;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .08s;
+  z-index: 10;
+}
+#brush-cursor.show { opacity: 1; }
+#brush-cursor.crosshair {
+  border-radius: 0;
+  background:
+    linear-gradient(rgba(255,255,255,.9), rgba(255,255,255,.9)) center/100% 2px no-repeat,
+    linear-gradient(rgba(255,255,255,.9), rgba(255,255,255,.9)) center/2px 100% no-repeat;
+  border: 0;
+  box-shadow: none;
 }
 
 /* File-picker label styled like a button */
@@ -192,6 +217,26 @@ input[type=range]::-moz-range-thumb { height: 28px; width: 28px; border-radius: 
   background: var(--bg);
   color: var(--fg);
   box-shadow: 0 1px 2px rgba(0,0,0,.35);
+}
+
+/* Paint color palette */
+.palette {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 8px;
+}
+.swatch {
+  appearance: none;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  aspect-ratio: 1 / 1;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+}
+.swatch.active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.2);
 }
 
 /* Snap chips for rotation */

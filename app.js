@@ -7,11 +7,18 @@ const VIEW = 1024;          // canvas resolution
 const UNDO_LIMIT = 10;
 
 const state = {
-  tool: "wand",             // "wand" | "erase" | "restore"
+  tool: "wand",             // "wand" | "erase" | "restore" | "paint"
   tolerance: 28,
-  brush: 40,
+  brush: 60,
+  paintColor: "#000000",
   loaded: false,
 };
+
+// Paint palette — high-contrast colors for annotating stickers
+const PAINT_COLORS = [
+  "#000000", "#ffffff", "#ff3b3b", "#ff8a3d",
+  "#ffd23f", "#7cd05c", "#4fc3ff", "#a259ff",
+];
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -57,6 +64,9 @@ function init() {
     });
   });
 
+  // Paint color palette
+  buildPaintPalette();
+
   // Sliders
   $("#photo-tolerance").addEventListener("input", (e) => {
     state.tolerance = parseInt(e.target.value, 10);
@@ -78,6 +88,11 @@ function init() {
   photo.canvas.addEventListener("pointermove", onPhotoPointerMove);
   photo.canvas.addEventListener("pointerup", onPhotoPointerUp);
   photo.canvas.addEventListener("pointercancel", onPhotoPointerUp);
+  // Cursor preview — a hover ring showing exactly what your brush will hit.
+  // Makes the eraser/paint/restore tools feel like normal drawing apps
+  // instead of "tap and hope."
+  photo.canvas.addEventListener("pointermove", onCursorPreview);
+  photo.canvas.addEventListener("pointerleave", hideCursor);
 
   // Actions
   $("#btn-share").addEventListener("click", onShare);
@@ -92,6 +107,27 @@ function setActiveTool() {
   });
   $("#photo-tolerance-row").hidden = state.tool !== "wand";
   $("#photo-brush-row").hidden = state.tool === "wand";
+  $("#photo-paint-row").hidden = state.tool !== "paint";
+}
+
+function buildPaintPalette() {
+  const root = $("#paint-palette");
+  if (!root) return;
+  root.innerHTML = "";
+  for (const c of PAINT_COLORS) {
+    const b = document.createElement("button");
+    b.className = "swatch";
+    b.style.background = c;
+    b.dataset.color = c;
+    b.setAttribute("aria-label", c);
+    if (c === state.paintColor) b.classList.add("active");
+    b.addEventListener("click", () => {
+      state.paintColor = c;
+      root.querySelectorAll(".swatch").forEach((s) => s.classList.remove("active"));
+      b.classList.add("active");
+    });
+    root.appendChild(b);
+  }
 }
 
 // ─── Loading a photo ───────────────────────────────────────────────────────
@@ -195,6 +231,34 @@ function onPhotoPointerUp() {
   photo.lastBrushX = photo.lastBrushY = null;
 }
 
+// ─── Cursor preview ────────────────────────────────────────────────────────
+//
+// Draws a ring on top of the canvas at the pointer location, sized to match
+// the brush diameter. The wand has no brush radius, so we show a small
+// crosshair instead. The cursor is a separate DOM element layered over the
+// canvas (a div with border-radius:50%) so it doesn't mutate canvas pixels.
+
+function onCursorPreview(ev) {
+  if (!state.loaded) return;
+  const cur = $("#brush-cursor");
+  if (!cur) return;
+  const rect = photo.canvas.getBoundingClientRect();
+  // Brush size is in canvas (1024) units; convert to CSS px for the overlay
+  const scale = rect.width / VIEW;
+  const size = state.tool === "wand" ? 14 : state.brush * scale;
+  cur.style.width = `${size}px`;
+  cur.style.height = `${size}px`;
+  cur.style.left = `${ev.clientX - rect.left}px`;
+  cur.style.top = `${ev.clientY - rect.top}px`;
+  cur.classList.toggle("crosshair", state.tool === "wand");
+  cur.classList.add("show");
+}
+
+function hideCursor() {
+  const cur = $("#brush-cursor");
+  if (cur) cur.classList.remove("show");
+}
+
 // ─── Brushes ───────────────────────────────────────────────────────────────
 
 function applyBrush(x, y) {
@@ -205,6 +269,16 @@ function applyBrush(x, y) {
     photo.ctx.beginPath();
     photo.ctx.arc(x, y, r, 0, Math.PI * 2);
     photo.ctx.fillStyle = "rgba(0,0,0,1)";
+    photo.ctx.fill();
+    photo.ctx.restore();
+  } else if (state.tool === "paint") {
+    // Paint opaque pixels — used to extend/draw on the subject (annotate,
+    // fill holes, add arrows, recolor regions).
+    photo.ctx.save();
+    photo.ctx.globalCompositeOperation = "source-over";
+    photo.ctx.beginPath();
+    photo.ctx.arc(x, y, r, 0, Math.PI * 2);
+    photo.ctx.fillStyle = state.paintColor;
     photo.ctx.fill();
     photo.ctx.restore();
   } else if (state.tool === "restore") {
