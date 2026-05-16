@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d12" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Polygons" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Polygon Stickers</title>
+</head>
+<body>
+  <main id="app">
+    <header class="topbar">
+      <div class="brand">▲ Polygons</div>
+      <a class="help" href="install.html" aria-label="How to install">Install</a>
+    </header>
+
+    <section class="stage" aria-label="Sticker preview">
+      <!-- Checkered background = visual "this is transparent". Drawn in CSS. -->
+      <div class="canvas-wrap">
+        <svg id="preview" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" aria-label="Polygon preview">
+          <defs>
+            <linearGradient id="fill-gradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%"  stop-color="#ff6ec7" />
+              <stop offset="100%" stop-color="#4fc3ff" />
+            </linearGradient>
+            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="14" />
+              <feOffset dx="0" dy="10" result="offsetBlur" />
+              <feComponentTransfer><feFuncA type="linear" slope="0.45" /></feComponentTransfer>
+              <feMerge>
+                <feMergeNode />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="innerGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="20" result="blur"/>
+              <feComposite in="blur" in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="inner"/>
+              <feColorMatrix in="inner" type="matrix" values="
+                0 0 0 0 1
+                0 0 0 0 1
+                0 0 0 0 1
+                0 0 0 0.9 0" result="white"/>
+              <feComposite in="white" in2="SourceAlpha" operator="in" result="cutInner"/>
+              <feMerge>
+                <feMergeNode in="SourceGraphic"/>
+                <feMergeNode in="cutInner"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <path id="poly" d="" />
+        </svg>
+      </div>
+    </section>
+
+    <section class="controls" aria-label="Controls">
+      <!-- Mode tabs -->
+      <div class="row">
+        <div class="seg" role="tablist" aria-label="Mode">
+          <button class="seg-btn active" data-mode="regular" role="tab" aria-selected="true">Regular</button>
+          <button class="seg-btn" data-mode="star" role="tab" aria-selected="false">Star</button>
+        </div>
+      </div>
+
+      <!-- Sides -->
+      <div class="row">
+        <label class="lbl"><span>Sides</span><output id="sides-out">6</output></label>
+        <input id="sides" type="range" min="3" max="50" value="6" step="1" />
+      </div>
+
+      <!-- Star ratio (only visible in star mode) -->
+      <div class="row" id="ratio-row" hidden>
+        <label class="lbl"><span>Inner / outer</span><output id="ratio-out">0.45</output></label>
+        <input id="ratio" type="range" min="0.15" max="0.95" value="0.45" step="0.01" />
+      </div>
+
+      <!-- Rotation -->
+      <div class="row">
+        <label class="lbl"><span>Rotation</span><output id="rot-out">0°</output></label>
+        <input id="rotation" type="range" min="0" max="360" value="0" step="1" />
+        <div class="snaps">
+          <button class="snap" data-rot="0">0</button>
+          <button class="snap" data-rot="30">30</button>
+          <button class="snap" data-rot="45">45</button>
+          <button class="snap" data-rot="60">60</button>
+          <button class="snap" data-rot="90">90</button>
+        </div>
+      </div>
+
+      <!-- Fill -->
+      <div class="row">
+        <div class="seg">
+          <button class="seg-btn active" data-fill="solid">Solid</button>
+          <button class="seg-btn" data-fill="gradient">Gradient</button>
+        </div>
+      </div>
+
+      <div class="row" id="solid-row">
+        <div class="palette" id="palette-1" data-target="fill"></div>
+      </div>
+
+      <div class="row" id="grad-row" hidden>
+        <label class="lbl"><span>Gradient stop 1</span></label>
+        <div class="palette" id="palette-grad1" data-target="grad1"></div>
+        <label class="lbl"><span>Gradient stop 2</span></label>
+        <div class="palette" id="palette-grad2" data-target="grad2"></div>
+        <label class="lbl"><span>Angle</span><output id="grad-angle-out">135°</output></label>
+        <input id="grad-angle" type="range" min="0" max="360" value="135" step="1" />
+      </div>
+
+      <!-- Stroke -->
+      <div class="row">
+        <label class="lbl"><span>Stroke</span><output id="stroke-out">0px</output></label>
+        <input id="stroke-w" type="range" min="0" max="40" value="0" step="1" />
+        <div class="palette compact" id="palette-stroke" data-target="stroke"></div>
+      </div>
+
+      <!-- Effects -->
+      <div class="row effects">
+        <label class="check">
+          <input id="fx-shadow" type="checkbox" />
+          <span>Drop shadow</span>
+        </label>
+        <label class="check">
+          <input id="fx-glow" type="checkbox" />
+          <span>Inner glow</span>
+        </label>
+      </div>
+    </section>
+
+    <footer class="actions">
+      <button id="btn-copy" class="action secondary">Copy</button>
+      <button id="btn-share" class="action primary">Save / Share</button>
+    </footer>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </main>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
