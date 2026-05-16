@@ -20,7 +20,7 @@ const PALETTE = [
 
 const state = {
   sides: 6,
-  mode: "regular",   // "regular" | "star"
+  mode: "regular",   // "regular" | "star" | "photo"
   ratio: 0.45,       // star inner/outer
   rotation: 0,       // degrees
   fillKind: "solid", // "solid" | "gradient"
@@ -32,6 +32,13 @@ const state = {
   strokeWidth: 0,
   shadow: false,
   glow: false,
+  // Photo mode
+  photo: {
+    tool: "wand",        // "wand" | "erase" | "restore"
+    tolerance: 28,
+    brush: 40,
+    loaded: false,
+  },
 };
 
 // ─── Polygon math ──────────────────────────────────────────────────────────
@@ -66,6 +73,9 @@ const gradEl = document.querySelector("#fill-gradient");
 const gradStops = gradEl.querySelectorAll("stop");
 
 function render() {
+  // Skip polygon rebuild in photo mode — the SVG is hidden, so it's wasted work
+  // and avoids triggering NaN warnings if photo state ever leaks into polygon code.
+  if (state.mode === "photo") return;
   // Path
   path.setAttribute("d", polygonPath());
 
@@ -146,14 +156,12 @@ function buildPalette(rootEl, target, includeNone = false) {
 }
 
 function init() {
-  // Mode tabs
-  const modeSeg = document.querySelector('.seg[role="tablist"]') ||
-                  document.querySelector('.seg');
+  // Mode tabs (regular / star / photo)
   document.querySelectorAll('.seg-btn[data-mode]').forEach((b) => {
     b.addEventListener("click", () => {
       state.mode = b.dataset.mode;
       setActiveSeg(b.parentElement, state.mode, "mode");
-      $("#ratio-row").hidden = state.mode !== "star";
+      applyModeVisibility();
       render();
     });
   });
@@ -188,8 +196,9 @@ function init() {
   wireSlider("grad-angle", "gradAngle", "grad-angle-out", (v) => `${v}°`);
   wireSlider("stroke-w", "strokeWidth", "stroke-out", (v) => `${v}px`);
 
-  // Rotation snap chips
-  document.querySelectorAll(".snap").forEach((b) => {
+  // Rotation snap chips (scoped to those with a data-rot value; other .snap
+  // chips like the photo-action buttons must not get this handler).
+  document.querySelectorAll(".snap[data-rot]").forEach((b) => {
     b.addEventListener("click", () => {
       const r = parseInt(b.dataset.rot, 10);
       state.rotation = r;
@@ -230,17 +239,46 @@ function init() {
   $("#btn-share").addEventListener("click", onShare);
   $("#btn-copy").addEventListener("click", onCopy);
 
+  // Photo mode
+  initPhotoMode();
+
+  applyModeVisibility();
   // First paint
   render();
 }
 
-// ─── Export: SVG → PNG ─────────────────────────────────────────────────────
+function applyModeVisibility() {
+  const photo = state.mode === "photo";
+  $("#polygon-controls").hidden = photo;
+  $("#photo-controls").hidden = !photo;
+  $("#ratio-row").hidden = state.mode !== "star";
+  // Toggle which preview surface is visible
+  document.querySelector(".canvas-wrap").classList.toggle("has-photo", photo);
+  $("#photo-canvas").hidden = !photo;
+}
+
+// ─── Export: SVG → PNG (or canvas → PNG in photo mode) ─────────────────────
 
 /**
- * Serialize the live SVG to a transparent PNG blob at VIEW×VIEW.
- * Returns Promise<Blob>.
+ * Returns the current sticker as a 1024×1024 transparent PNG blob.
+ * In polygon modes: rasterizes the SVG. In photo mode: returns the canvas.
  */
 function exportPng() {
+  if (state.mode === "photo") return exportPhotoPng();
+  return exportSvgPng();
+}
+
+function exportPhotoPng() {
+  return new Promise((resolve, reject) => {
+    const canvas = $("#photo-canvas");
+    canvas.toBlob((blob) => {
+      if (!blob) reject(new Error("photo toBlob returned null"));
+      else resolve(blob);
+    }, "image/png");
+  });
+}
+
+function exportSvgPng() {
   return new Promise((resolve, reject) => {
     const svg = $("#preview");
     // Clone so we can pin width/height without affecting the live element
@@ -332,6 +370,339 @@ async function onCopy() {
   } catch (e) {
     console.error(e);
     toast("Copy not supported on this device");
+  }
+}
+
+// ─── Photo mode ────────────────────────────────────────────────────────────
+//
+// The photo canvas holds the working RGBA image at 1024×1024. We keep two
+// extra ImageData snapshots:
+//   - originalImageData  → pristine letterboxed source (for the Restore brush + Reset)
+//   - undoStack          → up to 10 previous ImageData states (for Undo)
+//
+// Magic wand = stack-based flood-fill from the tapped pixel. Brushes paint
+// alpha=0 (Eraser) or copy pixels from originalImageData (Restore).
+
+const photo = {
+  canvas: null,
+  ctx: null,
+  originalImageData: null,
+  undoStack: [],
+  isDragging: false,
+  lastBrushX: null,
+  lastBrushY: null,
+};
+
+const UNDO_LIMIT = 10;
+
+function initPhotoMode() {
+  photo.canvas = $("#photo-canvas");
+  photo.ctx = photo.canvas.getContext("2d", { willReadFrequently: true });
+
+  // File input
+  $("#photo-file").addEventListener("change", (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) loadPhotoFile(f);
+  });
+
+  // Tool tabs
+  document.querySelectorAll('#photo-controls .seg-btn[data-tool]').forEach((b) => {
+    b.addEventListener("click", () => {
+      state.photo.tool = b.dataset.tool;
+      setActiveSeg(b.parentElement, state.photo.tool, "tool");
+      $("#photo-tolerance-row").hidden = state.photo.tool !== "wand";
+      $("#photo-brush-row").hidden = state.photo.tool === "wand";
+    });
+  });
+
+  // Sliders
+  $("#photo-tolerance").addEventListener("input", (e) => {
+    state.photo.tolerance = parseInt(e.target.value, 10);
+    $("#tol-out").textContent = state.photo.tolerance;
+  });
+  $("#photo-brush").addEventListener("input", (e) => {
+    state.photo.brush = parseInt(e.target.value, 10);
+    $("#brush-out").textContent = `${state.photo.brush}px`;
+  });
+
+  // Action chips
+  $("#photo-undo").addEventListener("click", undoPhoto);
+  $("#photo-reset").addEventListener("click", resetPhoto);
+  $("#photo-crop").addEventListener("click", cropPhotoToSubject);
+  $("#photo-auto").addEventListener("click", autoRemoveBackground);
+
+  // Pointer interaction
+  photo.canvas.addEventListener("pointerdown", onPhotoPointerDown);
+  photo.canvas.addEventListener("pointermove", onPhotoPointerMove);
+  photo.canvas.addEventListener("pointerup", onPhotoPointerUp);
+  photo.canvas.addEventListener("pointercancel", onPhotoPointerUp);
+}
+
+function loadPhotoFile(file) {
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    drawImageContained(img);
+    photo.originalImageData = photo.ctx.getImageData(0, 0, VIEW, VIEW);
+    photo.undoStack.length = 0;
+    state.photo.loaded = true;
+    $("#photo-tools").hidden = false;
+    $("#photo-tolerance-row").hidden = state.photo.tool !== "wand";
+    $("#photo-brush-row").hidden = state.photo.tool === "wand";
+    $("#photo-actions").hidden = false;
+    $("#photo-file-label").textContent = "Change photo";
+    toast("Tap the background to erase");
+  };
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    toast("Couldn't load that image");
+  };
+  img.src = url;
+}
+
+/**
+ * Draw `img` centered on the photo canvas, scaled to fit within 1024×1024
+ * preserving aspect ratio. Any letterbox area stays transparent.
+ */
+function drawImageContained(img) {
+  photo.ctx.clearRect(0, 0, VIEW, VIEW);
+  const r = Math.min(VIEW / img.naturalWidth, VIEW / img.naturalHeight);
+  const w = img.naturalWidth * r;
+  const h = img.naturalHeight * r;
+  const x = (VIEW - w) / 2;
+  const y = (VIEW - h) / 2;
+  photo.ctx.drawImage(img, x, y, w, h);
+}
+
+function pushUndo() {
+  const snap = photo.ctx.getImageData(0, 0, VIEW, VIEW);
+  photo.undoStack.push(snap);
+  if (photo.undoStack.length > UNDO_LIMIT) photo.undoStack.shift();
+}
+
+function undoPhoto() {
+  const snap = photo.undoStack.pop();
+  if (!snap) return toast("Nothing to undo");
+  photo.ctx.putImageData(snap, 0, 0);
+}
+
+function resetPhoto() {
+  if (!photo.originalImageData) return;
+  pushUndo();
+  photo.ctx.putImageData(photo.originalImageData, 0, 0);
+}
+
+// Pointer → canvas coordinate translation. The canvas is 1024² internal but
+// CSS-scaled to fit the wrapper; map client coords back to image coords.
+function canvasPointFromEvent(ev) {
+  const rect = photo.canvas.getBoundingClientRect();
+  const x = ((ev.clientX - rect.left) / rect.width) * VIEW;
+  const y = ((ev.clientY - rect.top) / rect.height) * VIEW;
+  return [Math.round(x), Math.round(y)];
+}
+
+function onPhotoPointerDown(ev) {
+  if (!state.photo.loaded) return;
+  ev.preventDefault();
+  // setPointerCapture throws on synthetic events that lack a registered
+  // pointer (some test harnesses, some browsers under unusual conditions).
+  try { photo.canvas.setPointerCapture(ev.pointerId); } catch {}
+  const [x, y] = canvasPointFromEvent(ev);
+  if (state.photo.tool === "wand") {
+    pushUndo();
+    magicWand(x, y, state.photo.tolerance);
+  } else {
+    pushUndo();
+    photo.isDragging = true;
+    photo.lastBrushX = x; photo.lastBrushY = y;
+    applyBrush(x, y);
+  }
+}
+
+function onPhotoPointerMove(ev) {
+  if (!photo.isDragging) return;
+  const [x, y] = canvasPointFromEvent(ev);
+  // Stamp along the line from last point to current so fast drags don't gap
+  const dx = x - photo.lastBrushX, dy = y - photo.lastBrushY;
+  const dist = Math.hypot(dx, dy);
+  const step = Math.max(1, state.photo.brush / 3);
+  const steps = Math.max(1, Math.floor(dist / step));
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    applyBrush(photo.lastBrushX + dx * t, photo.lastBrushY + dy * t);
+  }
+  photo.lastBrushX = x; photo.lastBrushY = y;
+}
+
+function onPhotoPointerUp() {
+  photo.isDragging = false;
+  photo.lastBrushX = photo.lastBrushY = null;
+}
+
+function applyBrush(x, y) {
+  const r = state.photo.brush / 2;
+  if (state.photo.tool === "erase") {
+    // Erase = clear alpha in circle
+    photo.ctx.save();
+    photo.ctx.globalCompositeOperation = "destination-out";
+    photo.ctx.beginPath();
+    photo.ctx.arc(x, y, r, 0, Math.PI * 2);
+    photo.ctx.fillStyle = "rgba(0,0,0,1)";
+    photo.ctx.fill();
+    photo.ctx.restore();
+  } else if (state.photo.tool === "restore") {
+    // Restore = sample original pixels inside the circle, put them back
+    if (!photo.originalImageData) return;
+    const x0 = Math.max(0, Math.floor(x - r));
+    const y0 = Math.max(0, Math.floor(y - r));
+    const x1 = Math.min(VIEW, Math.ceil(x + r));
+    const y1 = Math.min(VIEW, Math.ceil(y + r));
+    const w = x1 - x0, h = y1 - y0;
+    if (w <= 0 || h <= 0) return;
+    const cur = photo.ctx.getImageData(x0, y0, w, h);
+    const orig = photo.originalImageData.data;
+    const r2 = r * r;
+    for (let py = 0; py < h; py++) {
+      for (let px = 0; px < w; px++) {
+        const gx = x0 + px, gy = y0 + py;
+        const ddx = gx - x, ddy = gy - y;
+        if (ddx * ddx + ddy * ddy > r2) continue;
+        const di = (py * w + px) * 4;
+        const si = (gy * VIEW + gx) * 4;
+        cur.data[di]     = orig[si];
+        cur.data[di + 1] = orig[si + 1];
+        cur.data[di + 2] = orig[si + 2];
+        cur.data[di + 3] = orig[si + 3];
+      }
+    }
+    photo.ctx.putImageData(cur, x0, y0);
+  }
+}
+
+/**
+ * Stack-based flood-fill from (x, y). Any pixel reachable through a 4-way
+ * neighborhood whose RGB distance to the start pixel is ≤ `tolerance`
+ * gets its alpha cleared. Tolerance scale is 0..120 in Euclidean RGB.
+ */
+function magicWand(x, y, tolerance) {
+  const w = VIEW, h = VIEW;
+  if (x < 0 || y < 0 || x >= w || y >= h) return;
+  const img = photo.ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const i0 = (y * w + x) * 4;
+  if (d[i0 + 3] === 0) return; // already transparent
+  const tr = d[i0], tg = d[i0 + 1], tb = d[i0 + 2];
+  const tolSq = tolerance * tolerance;
+
+  // Track which pixels we've considered (bit per pixel via Uint8Array)
+  const seen = new Uint8Array(w * h);
+  const stack = [x + y * w];
+  seen[x + y * w] = 1;
+
+  while (stack.length) {
+    const p = stack.pop();
+    const i = p * 4;
+    if (d[i + 3] === 0) continue;
+    const dr = d[i] - tr, dg = d[i + 1] - tg, db = d[i + 2] - tb;
+    if (dr * dr + dg * dg + db * db > tolSq) continue;
+    // Soft alpha falloff at the tolerance boundary for nicer edges
+    const dist2 = dr * dr + dg * dg + db * db;
+    if (dist2 > tolSq * 0.7) {
+      // partial transparent → blend toward 0
+      const k = 1 - (dist2 - tolSq * 0.7) / (tolSq * 0.3);
+      d[i + 3] = Math.round(d[i + 3] * (1 - k));
+    } else {
+      d[i + 3] = 0;
+    }
+    const px = p % w, py = (p - px) / w;
+    if (px > 0)     { const n = p - 1;  if (!seen[n]) { seen[n] = 1; stack.push(n); } }
+    if (px < w - 1) { const n = p + 1;  if (!seen[n]) { seen[n] = 1; stack.push(n); } }
+    if (py > 0)     { const n = p - w;  if (!seen[n]) { seen[n] = 1; stack.push(n); } }
+    if (py < h - 1) { const n = p + w;  if (!seen[n]) { seen[n] = 1; stack.push(n); } }
+  }
+  photo.ctx.putImageData(img, 0, 0);
+}
+
+/**
+ * Find the tight bounding box of opaque (alpha > 8) pixels and rescale so the
+ * subject fills the canvas with a 4% margin on the larger axis. Letterbox
+ * stays transparent. Updates originalImageData so future Restore/Reset use
+ * the new cropped baseline.
+ */
+function cropPhotoToSubject() {
+  if (!state.photo.loaded) return;
+  const w = VIEW, h = VIEW;
+  const img = photo.ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (d[(y * w + x) * 4 + 3] > 8) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return toast("Nothing to crop — image is empty");
+  const cw = maxX - minX + 1, ch = maxY - minY + 1;
+  // Pull the cropped region into a temp canvas, then redraw at fit-scale.
+  const tmp = document.createElement("canvas");
+  tmp.width = cw; tmp.height = ch;
+  tmp.getContext("2d").putImageData(photo.ctx.getImageData(minX, minY, cw, ch), 0, 0);
+  pushUndo();
+  photo.ctx.clearRect(0, 0, w, h);
+  const margin = 0.04;
+  const r = (1 - margin * 2) * Math.min(w / cw, h / ch);
+  const nw = cw * r, nh = ch * r;
+  photo.ctx.drawImage(tmp, (w - nw) / 2, (h - nh) / 2, nw, nh);
+  // Update originalImageData to the cropped baseline (Restore brushes after a
+  // crop should pull from the cropped subject, not the pre-crop full image).
+  photo.originalImageData = photo.ctx.getImageData(0, 0, w, h);
+  toast("Cropped");
+}
+
+/**
+ * Lazy-load @imgly/background-removal from a CDN and run it on the current
+ * canvas pixels. The library downloads a ~30 MB ONNX model the first time;
+ * Cache-API persists it across visits so subsequent runs are instant.
+ */
+async function autoRemoveBackground() {
+  if (!state.photo.loaded) return;
+  const btn = $("#photo-auto");
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Loading model…";
+  try {
+    // First-time use will download the model — keep the user informed
+    toast("Downloading model… first time only, ~30 MB", 4500);
+    const mod = await import(
+      /* @vite-ignore */
+      "https://esm.sh/@imgly/background-removal@1.6.0"
+    );
+    btn.textContent = "Working…";
+    const blob = await new Promise((res, rej) => {
+      photo.canvas.toBlob((b) => b ? res(b) : rej(new Error("toBlob failed")), "image/png");
+    });
+    const result = await mod.removeBackground(blob);
+    const url = URL.createObjectURL(result);
+    const img = new Image();
+    await new Promise((res, rej) => {
+      img.onload = res; img.onerror = rej; img.src = url;
+    });
+    pushUndo();
+    photo.ctx.clearRect(0, 0, VIEW, VIEW);
+    // Result is the same dims as the input; draw it back in place
+    photo.ctx.drawImage(img, 0, 0, VIEW, VIEW);
+    URL.revokeObjectURL(url);
+    photo.originalImageData = photo.ctx.getImageData(0, 0, VIEW, VIEW);
+    toast("Background removed");
+  } catch (e) {
+    console.error("auto-remove failed:", e);
+    toast("Auto-remove failed — try magic wand");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
   }
 }
 

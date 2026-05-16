@@ -76,6 +76,7 @@
           </defs>
           <path id="poly" d="" />
         </svg>
+        <canvas id="photo-canvas" width="1024" height="1024" hidden aria-label="Photo preview"></canvas>
       </div>
     </section>
 
@@ -85,8 +86,52 @@
         <div class="seg" role="tablist" aria-label="Mode">
           <button class="seg-btn active" data-mode="regular" role="tab" aria-selected="true">Regular</button>
           <button class="seg-btn" data-mode="star" role="tab" aria-selected="false">Star</button>
+          <button class="seg-btn" data-mode="photo" role="tab" aria-selected="false">Photo</button>
         </div>
       </div>
+
+      <!-- Photo controls (visible only in photo mode) -->
+      <div id="photo-controls" hidden>
+        <div class="row">
+          <label class="btn-file action secondary">
+            <input id="photo-file" type="file" accept="image/*" hidden />
+            <span id="photo-file-label">Choose photo</span>
+          </label>
+          <p class="hint">Pick any image — screenshot, photo, meme. Then tap the background to erase it.</p>
+        </div>
+
+        <div class="row" id="photo-tools" hidden>
+          <div class="seg" role="tablist" aria-label="Tool">
+            <button class="seg-btn active" data-tool="wand" role="tab" aria-selected="true">Magic wand</button>
+            <button class="seg-btn" data-tool="erase" role="tab" aria-selected="false">Eraser</button>
+            <button class="seg-btn" data-tool="restore" role="tab" aria-selected="false">Restore</button>
+          </div>
+        </div>
+
+        <div class="row" id="photo-tolerance-row" hidden>
+          <label class="lbl"><span>Wand tolerance</span><output id="tol-out">28</output></label>
+          <input id="photo-tolerance" type="range" min="0" max="120" value="28" step="1" />
+          <p class="hint">Higher = grabs more similar pixels per tap. Flat backgrounds: low. Photos: high.</p>
+        </div>
+
+        <div class="row" id="photo-brush-row" hidden>
+          <label class="lbl"><span>Brush size</span><output id="brush-out">40px</output></label>
+          <input id="photo-brush" type="range" min="6" max="120" value="40" step="2" />
+        </div>
+
+        <div class="row" id="photo-actions" hidden>
+          <div class="snaps">
+            <button class="snap" id="photo-undo">Undo</button>
+            <button class="snap" id="photo-reset">Reset</button>
+            <button class="snap" id="photo-crop">Crop to subject</button>
+            <button class="snap" id="photo-auto">Auto-remove bg</button>
+          </div>
+          <p class="hint" id="photo-auto-hint">Auto-remove downloads a ~30 MB on-device model the first time you tap it. Runs entirely on your phone after that.</p>
+        </div>
+      </div>
+
+      <!-- Polygon controls wrapper (hidden in photo mode) -->
+      <div id="polygon-controls">
 
       <!-- Sides -->
       <div class="row">
@@ -152,6 +197,7 @@
           <span>Inner glow</span>
         </label>
       </div>
+      </div><!-- /#polygon-controls -->
     </section>
 
     <footer class="actions">
