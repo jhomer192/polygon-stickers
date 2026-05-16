@@ -1,4 +1,4 @@
-/* Polygon Stickers — mobile-first dark UI */
+/* Sticker Maker — mobile-first dark UI */
 
 :root {
   --bg: #0b0d12;
@@ -85,15 +85,12 @@ html, body {
   border: 1px solid var(--line);
   overflow: hidden;
 }
-#preview { display: block; width: 100%; height: 100%; }
 #photo-canvas {
   display: block;
   width: 100%;
   height: 100%;
   touch-action: none; /* prevent iOS scroll on drag */
 }
-#photo-canvas[hidden] { display: none; }
-.canvas-wrap.has-photo #preview { display: none; }
 
 /* File-picker label styled like a button */
 .btn-file {
@@ -216,48 +213,6 @@ input[type=range]::-moz-range-thumb { height: 28px; width: 28px; border-radius: 
   cursor: pointer;
 }
 .snap:active { background: var(--bg); border-color: var(--line); }
-
-/* Color palette */
-.palette {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
-}
-.palette.compact { grid-template-columns: repeat(8, 1fr); gap: 6px; }
-.swatch {
-  appearance: none;
-  border: 2px solid transparent;
-  border-radius: 50%;
-  aspect-ratio: 1 / 1;
-  cursor: pointer;
-  padding: 0;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
-}
-.swatch.active {
-  border-color: #fff;
-  box-shadow: 0 0 0 2px rgba(255,255,255,.15);
-}
-.swatch.none {
-  background: transparent;
-  position: relative;
-  border: 2px dashed var(--line);
-}
-.swatch.none::before {
-  content: '';
-  position: absolute;
-  inset: 5px;
-  border-top: 2px solid var(--muted);
-  transform: rotate(45deg);
-  transform-origin: center;
-  top: 50%;
-  left: 0;
-  right: 0;
-}
-
-/* Effect checkboxes */
-.effects { flex-direction: row; gap: 16px; padding-top: 12px; }
-.check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.check input { width: 20px; height: 20px; accent-color: var(--accent); }
 
 /* Actions */
 .actions {

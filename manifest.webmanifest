@@ -1,7 +1,7 @@
 {
-  "name": "Polygon Stickers",
-  "short_name": "Polygons",
-  "description": "Design custom polygon stickers and drop them into your iOS sticker collection.",
+  "name": "Sticker Maker",
+  "short_name": "Stickers",
+  "description": "Turn any photo or screenshot into a transparent iOS sticker.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

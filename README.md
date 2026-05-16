@@ -1,17 +1,25 @@
-# Polygon Stickers
+# Sticker Maker
 
-A free PWA that designs custom polygon stickers and hands them off to your
-iPhone's sticker collection. No App Store. No Apple Developer account.
+A free PWA that turns any photo, screenshot, or meme into a transparent
+PNG that iOS recognizes as a sticker. No App Store. No Apple Developer
+account.
 
 **Live:** https://jhomer192.github.io/polygon-stickers/
 
 ## What it does
 
-- Design regular polygons (3–50 sides) or stars with adjustable inner ratio
-- Solid or gradient fill, optional stroke, optional drop shadow / inner glow
+- Choose any image — photo, screenshot, meme, app badge
+- Erase the background with three tools:
+  - **Magic wand** — flood-fill on RGB distance, soft alpha falloff at the
+    tolerance boundary for clean edges
+  - **Eraser brush** — manual cleanup with `destination-out` compositing
+  - **Restore brush** — un-erase from the pristine baseline
+- **Crop to subject** — tight bbox around the remaining opaque pixels
+- **Auto-remove bg** — lazy-loaded `@imgly/background-removal` (~30 MB ONNX
+  model, cached after first use, runs entirely on-device)
 - Export to 1024×1024 transparent PNG
 - One tap → iOS share sheet → Save to Photos
-- Long-press the polygon in Photos → "Add Sticker" → done
+- Long-press the subject in Photos → "Add Sticker" → done
 
 See [install.html](install.html) (or the Install button in the app) for the
 30-second setup.
@@ -19,10 +27,12 @@ See [install.html](install.html) (or the Install button in the app) for the
 ## Architecture
 
 Single-page vanilla JavaScript. No framework, no build step, no server.
+Photo editing runs entirely in a `<canvas>` with `willReadFrequently` —
+no upload, no telemetry, no account.
 
 - `index.html` — main app
 - `install.html` — Add-to-Home-Screen + sticker workflow walkthrough
-- `app.js` — polygon math, SVG renderer, PNG export, share/copy
+- `app.js` — canvas editor, brushes, magic wand, crop, AI bg-removal, export
 - `style.css` — mobile-first dark UI
 - `manifest.webmanifest` — PWA install metadata
 - `service-worker.js` — offline cache, version-keyed

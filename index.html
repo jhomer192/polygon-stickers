@@ -7,197 +7,64 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Polygons" />
+  <meta name="apple-mobile-web-app-title" content="Stickers" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
   <link rel="stylesheet" href="style.css" />
-  <title>Polygon Stickers</title>
+  <title>Sticker Maker</title>
 </head>
 <body>
   <main id="app">
     <header class="topbar">
-      <div class="brand">▲ Polygons</div>
+      <div class="brand">✂︎ Stickers</div>
       <a class="help" href="install.html" aria-label="How to install">Install</a>
     </header>
 
     <section class="stage" aria-label="Sticker preview">
-      <!-- Checkered background = visual "this is transparent". Drawn in CSS. -->
-      <div class="canvas-wrap">
-        <svg id="preview" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" aria-label="Polygon preview">
-          <defs>
-            <linearGradient id="fill-gradient" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%"  stop-color="#ff6ec7" />
-              <stop offset="100%" stop-color="#4fc3ff" />
-            </linearGradient>
-            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="14" />
-              <feOffset dx="0" dy="10" result="offsetBlur" />
-              <feComponentTransfer><feFuncA type="linear" slope="0.45" /></feComponentTransfer>
-              <feMerge>
-                <feMergeNode />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-            <filter id="innerGlow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="20" result="blur"/>
-              <feComposite in="blur" in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="inner"/>
-              <feColorMatrix in="inner" type="matrix" values="
-                0 0 0 0 1
-                0 0 0 0 1
-                0 0 0 0 1
-                0 0 0 0.9 0" result="white"/>
-              <feComposite in="white" in2="SourceAlpha" operator="in" result="cutInner"/>
-              <feMerge>
-                <feMergeNode in="SourceGraphic"/>
-                <feMergeNode in="cutInner"/>
-              </feMerge>
-            </filter>
-            <!-- Combined: drop shadow below, inner glow above SourceGraphic. -->
-            <filter id="shadowAndGlow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="sb"/>
-              <feOffset in="sb" dx="0" dy="10" result="so"/>
-              <feComponentTransfer in="so" result="dropShadow"><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
-              <feGaussianBlur in="SourceAlpha" stdDeviation="20" result="gb"/>
-              <feComposite in="gb" in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="gi"/>
-              <feColorMatrix in="gi" type="matrix" values="
-                0 0 0 0 1
-                0 0 0 0 1
-                0 0 0 0 1
-                0 0 0 0.9 0" result="gw"/>
-              <feComposite in="gw" in2="SourceAlpha" operator="in" result="glowClipped"/>
-              <feMerge>
-                <feMergeNode in="dropShadow"/>
-                <feMergeNode in="SourceGraphic"/>
-                <feMergeNode in="glowClipped"/>
-              </feMerge>
-            </filter>
-          </defs>
-          <path id="poly" d="" />
-        </svg>
-        <canvas id="photo-canvas" width="1024" height="1024" hidden aria-label="Photo preview"></canvas>
+      <div class="canvas-wrap has-photo">
+        <canvas id="photo-canvas" width="1024" height="1024" aria-label="Sticker canvas"></canvas>
       </div>
     </section>
 
     <section class="controls" aria-label="Controls">
-      <!-- Mode tabs -->
       <div class="row">
-        <div class="seg" role="tablist" aria-label="Mode">
-          <button class="seg-btn active" data-mode="regular" role="tab" aria-selected="true">Regular</button>
-          <button class="seg-btn" data-mode="star" role="tab" aria-selected="false">Star</button>
-          <button class="seg-btn" data-mode="photo" role="tab" aria-selected="false">Photo</button>
+        <label class="btn-file action secondary">
+          <input id="photo-file" type="file" accept="image/*" hidden />
+          <span id="photo-file-label">Choose photo</span>
+        </label>
+        <p class="hint">Pick any image — photo, screenshot, meme. Then tap the background to erase it.</p>
+      </div>
+
+      <div class="row" id="photo-tools" hidden>
+        <div class="seg" role="tablist" aria-label="Tool">
+          <button class="seg-btn active" data-tool="wand" role="tab" aria-selected="true">Magic wand</button>
+          <button class="seg-btn" data-tool="erase" role="tab" aria-selected="false">Eraser</button>
+          <button class="seg-btn" data-tool="restore" role="tab" aria-selected="false">Restore</button>
         </div>
       </div>
 
-      <!-- Photo controls (visible only in photo mode) -->
-      <div id="photo-controls" hidden>
-        <div class="row">
-          <label class="btn-file action secondary">
-            <input id="photo-file" type="file" accept="image/*" hidden />
-            <span id="photo-file-label">Choose photo</span>
-          </label>
-          <p class="hint">Pick any image — screenshot, photo, meme. Then tap the background to erase it.</p>
-        </div>
-
-        <div class="row" id="photo-tools" hidden>
-          <div class="seg" role="tablist" aria-label="Tool">
-            <button class="seg-btn active" data-tool="wand" role="tab" aria-selected="true">Magic wand</button>
-            <button class="seg-btn" data-tool="erase" role="tab" aria-selected="false">Eraser</button>
-            <button class="seg-btn" data-tool="restore" role="tab" aria-selected="false">Restore</button>
-          </div>
-        </div>
-
-        <div class="row" id="photo-tolerance-row" hidden>
-          <label class="lbl"><span>Wand tolerance</span><output id="tol-out">28</output></label>
-          <input id="photo-tolerance" type="range" min="0" max="120" value="28" step="1" />
-          <p class="hint">Higher = grabs more similar pixels per tap. Flat backgrounds: low. Photos: high.</p>
-        </div>
-
-        <div class="row" id="photo-brush-row" hidden>
-          <label class="lbl"><span>Brush size</span><output id="brush-out">40px</output></label>
-          <input id="photo-brush" type="range" min="6" max="120" value="40" step="2" />
-        </div>
-
-        <div class="row" id="photo-actions" hidden>
-          <div class="snaps">
-            <button class="snap" id="photo-undo">Undo</button>
-            <button class="snap" id="photo-reset">Reset</button>
-            <button class="snap" id="photo-crop">Crop to subject</button>
-            <button class="snap" id="photo-auto">Auto-remove bg</button>
-          </div>
-          <p class="hint" id="photo-auto-hint">Auto-remove downloads a ~30 MB on-device model the first time you tap it. Runs entirely on your phone after that.</p>
-        </div>
+      <div class="row" id="photo-tolerance-row" hidden>
+        <label class="lbl"><span>Wand tolerance</span><output id="tol-out">28</output></label>
+        <input id="photo-tolerance" type="range" min="0" max="120" value="28" step="1" />
+        <p class="hint">Higher = grabs more similar pixels per tap. Flat backgrounds: low. Photos: high.</p>
       </div>
 
-      <!-- Polygon controls wrapper (hidden in photo mode) -->
-      <div id="polygon-controls">
-
-      <!-- Sides -->
-      <div class="row">
-        <label class="lbl"><span>Sides</span><output id="sides-out">6</output></label>
-        <input id="sides" type="range" min="3" max="50" value="6" step="1" />
+      <div class="row" id="photo-brush-row" hidden>
+        <label class="lbl"><span>Brush size</span><output id="brush-out">40px</output></label>
+        <input id="photo-brush" type="range" min="6" max="120" value="40" step="2" />
       </div>
 
-      <!-- Star ratio (only visible in star mode) -->
-      <div class="row" id="ratio-row" hidden>
-        <label class="lbl"><span>Inner / outer</span><output id="ratio-out">0.45</output></label>
-        <input id="ratio" type="range" min="0.15" max="0.95" value="0.45" step="0.01" />
-      </div>
-
-      <!-- Rotation -->
-      <div class="row">
-        <label class="lbl"><span>Rotation</span><output id="rot-out">0°</output></label>
-        <input id="rotation" type="range" min="0" max="360" value="0" step="1" />
+      <div class="row" id="photo-actions" hidden>
         <div class="snaps">
-          <button class="snap" data-rot="0">0</button>
-          <button class="snap" data-rot="30">30</button>
-          <button class="snap" data-rot="45">45</button>
-          <button class="snap" data-rot="60">60</button>
-          <button class="snap" data-rot="90">90</button>
+          <button class="snap" id="photo-undo">Undo</button>
+          <button class="snap" id="photo-reset">Reset</button>
+          <button class="snap" id="photo-crop">Crop to subject</button>
+          <button class="snap" id="photo-auto">Auto-remove bg</button>
         </div>
+        <p class="hint" id="photo-auto-hint">Auto-remove downloads a ~30 MB on-device model the first time you tap it. Runs entirely on your phone after that.</p>
       </div>
-
-      <!-- Fill -->
-      <div class="row">
-        <div class="seg">
-          <button class="seg-btn active" data-fill="solid">Solid</button>
-          <button class="seg-btn" data-fill="gradient">Gradient</button>
-        </div>
-      </div>
-
-      <div class="row" id="solid-row">
-        <div class="palette" id="palette-1" data-target="fill"></div>
-      </div>
-
-      <div class="row" id="grad-row" hidden>
-        <label class="lbl"><span>Gradient stop 1</span></label>
-        <div class="palette" id="palette-grad1" data-target="grad1"></div>
-        <label class="lbl"><span>Gradient stop 2</span></label>
-        <div class="palette" id="palette-grad2" data-target="grad2"></div>
-        <label class="lbl"><span>Angle</span><output id="grad-angle-out">135°</output></label>
-        <input id="grad-angle" type="range" min="0" max="360" value="135" step="1" />
-      </div>
-
-      <!-- Stroke -->
-      <div class="row">
-        <label class="lbl"><span>Stroke</span><output id="stroke-out">0px</output></label>
-        <input id="stroke-w" type="range" min="0" max="40" value="0" step="1" />
-        <div class="palette compact" id="palette-stroke" data-target="stroke"></div>
-      </div>
-
-      <!-- Effects -->
-      <div class="row effects">
-        <label class="check">
-          <input id="fx-shadow" type="checkbox" />
-          <span>Drop shadow</span>
-        </label>
-        <label class="check">
-          <input id="fx-glow" type="checkbox" />
-          <span>Inner glow</span>
-        </label>
-      </div>
-      </div><!-- /#polygon-controls -->
     </section>
 
     <footer class="actions">

@@ -2,8 +2,8 @@
 // updates land on next visit. Version-keyed cache name so old caches evict
 // when we bump the version.
 
-const VERSION = "v2";
-const CACHE = `polygons-${VERSION}`;
+const VERSION = "v3";
+const CACHE = `stickers-${VERSION}`;
 const ASSETS = [
   "./",
   "./index.html",
