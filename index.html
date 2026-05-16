@@ -54,6 +54,25 @@
                 <feMergeNode in="cutInner"/>
               </feMerge>
             </filter>
+            <!-- Combined: drop shadow below, inner glow above SourceGraphic. -->
+            <filter id="shadowAndGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="sb"/>
+              <feOffset in="sb" dx="0" dy="10" result="so"/>
+              <feComponentTransfer in="so" result="dropShadow"><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
+              <feGaussianBlur in="SourceAlpha" stdDeviation="20" result="gb"/>
+              <feComposite in="gb" in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="gi"/>
+              <feColorMatrix in="gi" type="matrix" values="
+                0 0 0 0 1
+                0 0 0 0 1
+                0 0 0 0 1
+                0 0 0 0.9 0" result="gw"/>
+              <feComposite in="gw" in2="SourceAlpha" operator="in" result="glowClipped"/>
+              <feMerge>
+                <feMergeNode in="dropShadow"/>
+                <feMergeNode in="SourceGraphic"/>
+                <feMergeNode in="glowClipped"/>
+              </feMerge>
+            </filter>
           </defs>
           <path id="poly" d="" />
         </svg>

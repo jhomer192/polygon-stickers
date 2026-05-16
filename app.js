@@ -96,16 +96,12 @@ function render() {
     path.removeAttribute("stroke-width");
   }
 
-  // Filter chain (shadow, glow). SVG only supports one `filter=` so combine.
-  const filters = [];
-  if (state.glow) filters.push("url(#innerGlow)");
-  if (state.shadow) filters.push("url(#shadow)");
-  if (filters.length === 0) path.removeAttribute("filter");
-  else path.setAttribute("filter", filters[0]); // if both, prefer shadow over glow
-  // Real combined-filter compositing is a chain in <filter>; v1 keeps it simple.
-  if (state.shadow && state.glow) {
-    path.setAttribute("filter", "url(#shadow)");
-  }
+  // Filter selection. SVG only supports one `filter=` per element, so the
+  // combined case uses a dedicated #shadowAndGlow filter that chains both.
+  if (state.shadow && state.glow) path.setAttribute("filter", "url(#shadowAndGlow)");
+  else if (state.shadow) path.setAttribute("filter", "url(#shadow)");
+  else if (state.glow) path.setAttribute("filter", "url(#innerGlow)");
+  else path.removeAttribute("filter");
 }
 
 // ─── UI wiring ─────────────────────────────────────────────────────────────
