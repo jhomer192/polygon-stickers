@@ -494,6 +494,17 @@ if ("serviceWorker" in navigator) {
       .register("service-worker.js")
       .catch((err) => console.warn("SW registration failed:", err));
   });
+
+  // When a new SW takes over (e.g. after we ship an update), reload the page
+  // once so the new HTML and new JS load together. Without this, an old SW
+  // can serve stale JS against new HTML on first visit after a deploy —
+  // exactly the breakage that happens during a major refactor.
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
 }
 
 init();
