@@ -1,10 +1,20 @@
-// Sticker Maker — photo → transparent PNG → iOS sticker drawer.
+// Sticker Maker — photo → subject on chroma-key → iOS sticker drawer.
 //
 // One canvas, three brushes (magic wand, eraser, restore), crop-to-subject,
 // optional AI background remover. Everything runs locally; nothing uploads.
+//
+// Export note: we deliberately flatten the transparent canvas onto a solid
+// lime-green (#00ff00) background and ship a JPEG, not a transparent PNG.
+// Two iOS quirks make the obvious "transparent PNG" path fail:
+//   1. Photos strips transparency when saving from Safari (PNG → white BG).
+//   2. iOS "Add Sticker" needs a *subject against a background* for its
+//      segmentation model — a pre-cutout has nothing to lift.
+// Lime green is a clean chroma the subject-lift model trivially separates,
+// and JPEG forecloses any chance the receiver thinks the alpha matters.
 
 const VIEW = 1024;          // canvas resolution
 const UNDO_LIMIT = 10;
+const CHROMA = "#00ff00";   // export background (see header note)
 
 const state = {
   tool: "wand",             // "wand" | "erase" | "restore" | "paint"
@@ -432,20 +442,31 @@ async function autoRemoveBackground() {
 
 // ─── Export ────────────────────────────────────────────────────────────────
 
-function exportPng() {
+// Flatten the working canvas onto a solid chroma background and export as
+// JPEG. The chroma fill exists so that iOS subject-lift on the receiving
+// end (Photos long-press → Add Sticker) sees an actual foreground/background
+// pair instead of a pre-cutout it can't segment. See header note.
+function exportFlat() {
+  const out = document.createElement("canvas");
+  out.width = photo.canvas.width;
+  out.height = photo.canvas.height;
+  const octx = out.getContext("2d");
+  octx.fillStyle = CHROMA;
+  octx.fillRect(0, 0, out.width, out.height);
+  octx.drawImage(photo.canvas, 0, 0);
   return new Promise((resolve, reject) => {
-    photo.canvas.toBlob((blob) => {
+    out.toBlob((blob) => {
       if (!blob) reject(new Error("toBlob returned null"));
       else resolve(blob);
-    }, "image/png");
+    }, "image/jpeg", 0.92);
   });
 }
 
 async function onShare() {
   if (!state.loaded) return toast("Choose a photo first");
   try {
-    const blob = await exportPng();
-    const file = new File([blob], `sticker-${Date.now()}.png`, { type: "image/png" });
+    const blob = await exportFlat();
+    const file = new File([blob], `sticker-${Date.now()}.jpg`, { type: "image/jpeg" });
 
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
@@ -474,11 +495,11 @@ async function onShare() {
 async function onCopy() {
   if (!state.loaded) return toast("Choose a photo first");
   try {
-    const blob = await exportPng();
+    const blob = await exportFlat();
     if (!navigator.clipboard || !window.ClipboardItem) {
       throw new Error("Clipboard image not supported");
     }
-    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
     toast("Copied — paste into Messages");
   } catch (e) {
     console.error(e);

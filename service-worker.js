@@ -2,7 +2,7 @@
 // updates land on next visit. Version-keyed cache name so old caches evict
 // when we bump the version.
 
-const VERSION = "v6";
+const VERSION = "v7";
 const CACHE = `stickers-${VERSION}`;
 const ASSETS = [
   "./",

@@ -1,8 +1,7 @@
 # Sticker Maker
 
-A free PWA that turns any photo, screenshot, or meme into a transparent
-PNG that iOS recognizes as a sticker. No App Store. No Apple Developer
-account.
+A free PWA that turns any photo, screenshot, or meme into an iOS sticker.
+No App Store. No Apple Developer account.
 
 **Live:** https://jhomer192.github.io/polygon-stickers/
 
@@ -17,9 +16,13 @@ account.
 - **Crop to subject** — tight bbox around the remaining opaque pixels
 - **Auto-remove bg** — lazy-loaded `@imgly/background-removal` (~30 MB ONNX
   model, cached after first use, runs entirely on-device)
-- Export to 1024×1024 transparent PNG
+- Export 1024×1024 JPEG with the cut-out subject composited on a
+  lime-green chroma background (iOS strips PNG transparency on save *and*
+  needs a foreground/background pair to fire subject-lift — chroma fixes
+  both)
 - One tap → iOS share sheet → Save to Photos
-- Long-press the subject in Photos → "Add Sticker" → done
+- Long-press the subject in Photos → "Add Sticker" → done. iOS's own
+  segmentation model trivially lifts the subject off the lime background.
 
 See [install.html](install.html) (or the Install button in the app) for the
 30-second setup.
