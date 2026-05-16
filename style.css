@@ -85,7 +85,13 @@ html, body {
   border: 1px solid var(--line);
   overflow: hidden;
 }
-.canvas-wrap { position: relative; }
+.canvas-wrap {
+  position: relative;
+  /* touch-action:none on the wrapper too — iOS Safari otherwise lets a touch
+     that lands a hair outside the canvas bounds initiate a page scroll. */
+  touch-action: none;
+  overscroll-behavior: contain;
+}
 #photo-canvas {
   display: block;
   width: 100%;

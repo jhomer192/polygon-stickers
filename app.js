@@ -94,6 +94,18 @@ function init() {
   photo.canvas.addEventListener("pointermove", onCursorPreview);
   photo.canvas.addEventListener("pointerleave", hideCursor);
 
+  // iOS Safari bug: touch-action:none + ev.preventDefault() inside a
+  // pointerdown handler does NOT reliably stop the browser from scrolling
+  // when you drag on the canvas. The only thing that does is a non-passive
+  // touchstart/touchmove listener that calls preventDefault synchronously.
+  // We attach those at the canvas level so dragging the eraser/paint/restore
+  // brush never scrolls the page.
+  const blockTouch = (e) => {
+    if (state.loaded) e.preventDefault();
+  };
+  photo.canvas.addEventListener("touchstart", blockTouch, { passive: false });
+  photo.canvas.addEventListener("touchmove", blockTouch, { passive: false });
+
   // Actions
   $("#btn-share").addEventListener("click", onShare);
   $("#btn-copy").addEventListener("click", onCopy);
