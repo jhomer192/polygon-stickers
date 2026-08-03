@@ -160,6 +160,7 @@ html, body {
   border-bottom: 1px solid var(--line);
 }
 .row:last-child { border-bottom: 0; }
+.row[hidden] { display: none; }
 
 .lbl {
   display: flex;
