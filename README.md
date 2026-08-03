@@ -3,7 +3,7 @@
 A free PWA that turns any photo, screenshot, or meme into an iOS sticker.
 No App Store. No Apple Developer account.
 
-**Live:** https://jhomer192.github.io/polygon-stickers/
+**Live:** https://jackhomer.com/polygon-stickers/
 
 ## What it does
 

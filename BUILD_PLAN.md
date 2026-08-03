@@ -134,7 +134,7 @@ The simplest version that's actually good, not the kitchen sink.
 
 1. Push to new repo `jhomer192/polygon-stickers`.
 2. Enable GitHub Pages: Settings → Pages → main branch / root.
-3. URL: `https://jhomer192.github.io/polygon-stickers/`.
+3. URL: `https://jackhomer.com/polygon-stickers/`.
 4. Jack opens that URL on his iPhone → Share → Add to Home Screen.
 
 ## Risks / unknowns
