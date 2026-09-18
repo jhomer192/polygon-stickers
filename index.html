@@ -24,7 +24,13 @@
   <meta property="og:site_name" content="Jack Homer" />
   <meta name="twitter:card" content="summary" />
   <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "Sticker Maker", "url": "https://jackhomer.com/polygon-stickers/", "description": "Turn a photo into a sticker in the browser. Tap the background with the wand to erase it, or run the on-device auto-remove model, then crop to the subject and copy or share the cut-out. Installable as a home-screen app.", "applicationCategory": "UtilityApplication", "operatingSystem": "Any", "browserRequirements": "Requires JavaScript", "isAccessibleForFree": true, "author": {"@type": "Person", "@id": "https://jackhomer.com/#jack", "name": "Jack Homer", "url": "https://jackhomer.com"}, "isPartOf": {"@type": "WebSite", "@id": "https://jackhomer.com/#site", "name": "Jack Homer", "url": "https://jackhomer.com"}, "sameAs": "https://github.com/jhomer192/polygon-stickers"}</script>
-</head>
+    <style>
+      .app-guide { box-sizing: border-box; max-width: 52rem; margin: 0 auto; padding: 2rem 1.25rem 2rem; font: 1rem/1.65 system-ui, sans-serif; color: inherit; }
+      .app-guide h2 { font-size: 1.35rem; line-height: 1.3; margin: 0 0 1rem; }
+      .app-guide p { margin: .8rem 0; }
+      .app-guide a { color: inherit; text-decoration: underline; text-underline-offset: .2em; }
+    </style>
+  </head>
 <body>
   <main id="app">
     <header class="topbar">
@@ -98,5 +104,12 @@
   </main>
 
   <script src="app.js" type="module"></script>
-</body>
+    <section class="app-guide" aria-labelledby="app-guide-title">
+      <h2 id="app-guide-title">Make photo stickers in your browser</h2>
+      <p>Choose a photo, tap the background with the wand to erase it, or use automatic background removal. Refine the cutout, crop to the subject, then copy or save your sticker.</p>
+      <p>Image editing happens on your device. Automatic removal downloads a model; copy and sharing options depend on your browser.</p>
+      <p>Built by <a href="https://jackhomer.com/">Jack Homer</a> · <a href="https://jackhomer.com/projects/polygon-stickers/">How this project works</a></p>
+      <noscript><p>Enable JavaScript to use the interactive tool.</p></noscript>
+    </section>
+  </body>
 </html>
