@@ -50,3 +50,5 @@ Pushing to `main` publishes it: GitHub Pages serves the repository root.
 Vanilla JavaScript in a single page, with no framework and no bundler. `app.js` holds the editor, `style.css` the mobile-first dark UI, and `service-worker.js` a version-keyed offline cache.
 
 MIT licensed. More projects: https://jackhomer.com/projects/
+
+A project by [Jack Homer](https://jackhomer.com/).
